@@ -1,4 +1,5 @@
 import logging
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -8,9 +9,11 @@ from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.helpers import config_validation as cv, aiohttp_client
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.helpers.event import async_track_time_interval
 from pyhon import Hon
 
 from .const import DOMAIN, PLATFORMS, MOBILE_ID, CONF_REFRESH_TOKEN
+from .recovery import HonStateRecovery
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,15 +48,45 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry, data={**entry.data, CONF_REFRESH_TOKEN: hon.api.auth.refresh_token}
     )
 
-    coordinator: DataUpdateCoordinator[dict[str, Any]] = DataUpdateCoordinator(
-        hass, _LOGGER, name=DOMAIN
+    recovery = HonStateRecovery(hon)
+    coordinator: DataUpdateCoordinator[dict[str, bool]] = DataUpdateCoordinator(
+        hass, _LOGGER, name=DOMAIN, update_method=recovery.refresh
     )
-    hon.subscribe_updates(coordinator.async_set_updated_data)
+    coordinator.async_set_updated_data(recovery.available.copy())
+
+    def publish_update(_data: Any) -> None:
+        # Pushes notify entity listeners, but do not turn a failed REST refresh
+        # into a successful one or postpone the fallback timer.
+        hass.loop.call_soon_threadsafe(coordinator.async_update_listeners)
+
+    hon.subscribe_updates(publish_update)
+
+    async def refresh_state(_now: Any) -> None:
+        await coordinator.async_refresh()
+
+    # Keep this timer independent of async_set_updated_data calls made by other
+    # appliances and UI pickers. A busy washer must not starve a quiet dryer.
+    cancel_refresh = async_track_time_interval(
+        hass, refresh_state, timedelta(minutes=5)
+    )
+    entry.async_on_unload(cancel_refresh)
 
     hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN][entry.unique_id] = {"hon": hon, "coordinator": coordinator}
+    hass.data[DOMAIN][entry.unique_id] = {
+        "hon": hon,
+        "coordinator": coordinator,
+        "recovery": recovery,
+        "cancel_refresh": cancel_refresh,
+    }
 
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    try:
+        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    except Exception:
+        cancel_refresh()
+        await recovery.close()
+        await hon.close()
+        hass.data[DOMAIN].pop(entry.unique_id, None)
+        raise
 
     return True
 
@@ -66,6 +99,12 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
     unload = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload:
+        runtime = hass.data[DOMAIN].pop(entry.unique_id)
+        runtime["cancel_refresh"]()
+        await runtime["recovery"].close()
+        hon = runtime["hon"]
+        hon.subscribe_updates(None)
+        await hon.close()
         if not hass.data[DOMAIN]:
             hass.data.pop(DOMAIN, None)
     return unload
