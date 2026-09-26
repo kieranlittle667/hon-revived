@@ -15,7 +15,7 @@ class HonStateRecovery:
         self.timeout = timeout
         self.available = {device.unique_id: True for device in hon.appliances}
         self._lock = asyncio.Lock()
-        self._task: asyncio.Task | None = None
+        self._task: asyncio.Task[Any] | None = None
         self._closed = False
 
     async def refresh(self) -> dict[str, bool]:
