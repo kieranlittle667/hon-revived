@@ -8,6 +8,7 @@ import pytest
 
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntries
+from homeassistant.helpers import frame
 from custom_components.hon import async_setup_entry, async_unload_entry
 from custom_components.hon.const import DOMAIN
 from custom_components.hon.recovery import HonStateRecovery
@@ -51,6 +52,8 @@ async def test_timeout_and_close_do_not_leave_refresh_tasks():
 async def test_pushes_do_not_postpone_poll_and_unload_closes_client(tmp_path):
     hass = HomeAssistant(str(tmp_path))
     hass.config_entries = ConfigEntries(hass, {})
+    if setup_frame := getattr(frame, "async_setup", None):
+        setup_frame(hass)
     entry = SimpleNamespace(
         unique_id="account",
         data={"email": "test@example.invalid", "password": "fake"},
