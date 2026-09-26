@@ -57,5 +57,12 @@ connection synchronization, cycle completion, pause, door state, missed pushes,
 thread dispatch, malformed messages, snapshot races and shutdown cleanup.
 
 Current HA compatibility is checked by the State regression tests GitHub workflow.
+The targeted tests pass on Home Assistant 2026.9.0, and HACS/hassfest validation
+passes. The inherited Python quality workflows still report baseline issues:
+the integration has two pre-existing return-type errors in climate/binary_sensor;
+the library has existing complexity/formatting failures and eight type errors.
+The library's type failures were reproduced against untouched upstream main.
+Those wider cleanups are outside this state-recovery change and have not been hidden
+by weakening or disabling checks.
 Actual cloud outages, unavailable Wi-Fi and machine-side refusal can still prevent
 updates or starts. The dashboard should continue to require appliance confirmation.
