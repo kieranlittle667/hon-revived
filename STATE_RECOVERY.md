@@ -6,6 +6,10 @@ connectivity to Haier's cloud. No appliance start/stop command is part of recove
 
 ## Changes
 
+- Retry initial setup automatically through Home Assistant's backoff when DNS,
+  a connection, or a request times out before the recovery coordinator exists.
+  Close the failed client before retrying. Authentication and other non-transport
+  errors are not silently converted into connectivity failures.
 - Refresh every appliance through REST every five minutes, independently of MQTT
   pushes and changes to settings. A busy appliance cannot postpone another one's
   fallback refresh.
@@ -21,8 +25,9 @@ connectivity to Haier's cloud. No appliance start/stop command is part of recove
   that update. Newer cloud snapshots can still be stale at their source.
 
 The manifest pins the companion library to an immutable commit and an explicit
-development version. Install this branch only as a deliberate test deployment;
-the existing HA installation has not been replaced as part of developing it.
+development version. Install this branch only as a deliberate test deployment.
+Version `0.19.3.dev1` adds startup retry to the state recovery in `0.19.3.dev0`;
+updating the integration's Python code requires a Home Assistant restart.
 
 ## Comparison reviewed
 
@@ -52,7 +57,9 @@ the existing HA installation has not been replaced as part of developing it.
 
 Run `python -m pytest -q` with Home Assistant, the pinned companion library, pytest
 and pytest-asyncio installed. Tests use fake appliances and a real HA coordinator;
-they never log into hOn or start an appliance. Companion-library tests cover live
+they never log into hOn or start an appliance. Startup tests cover DNS errors,
+connection failures and timeouts, including cleanup failure, without leaving
+timers or partial runtime state. Companion-library tests cover live
 connection synchronization, cycle completion, pause, door state, missed pushes,
 thread dispatch, malformed messages, snapshot races and shutdown cleanup.
 

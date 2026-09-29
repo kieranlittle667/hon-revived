@@ -1,14 +1,17 @@
 """Regression coverage for independent REST recovery and unload cleanup."""
 
 import asyncio
+import socket
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from aiohttp import ClientConnectionError, ClientConnectorError
 
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntries
 from homeassistant.helpers import frame
+from homeassistant.exceptions import ConfigEntryNotReady
 from custom_components.hon import async_setup_entry, async_unload_entry
 from custom_components.hon.const import DOMAIN
 from custom_components.hon.recovery import HonStateRecovery
@@ -16,6 +19,48 @@ from custom_components.hon.recovery import HonStateRecovery
 
 def device(name, error=None):
     return SimpleNamespace(unique_id=name, update=AsyncMock(side_effect=error))
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "error",
+    [
+        ClientConnectorError(
+            SimpleNamespace(host="api-iot.he.services", port=443, ssl=True),
+            socket.gaierror("Timeout while contacting DNS servers"),
+        ),
+        ClientConnectionError("Connection lost"),
+        TimeoutError(),
+    ],
+)
+@pytest.mark.parametrize("cleanup_fails", [False, True])
+async def test_startup_network_failure_requests_retry_without_partial_setup(
+    tmp_path, error, cleanup_fails
+):
+    hass = HomeAssistant(str(tmp_path))
+    entry = SimpleNamespace(
+        unique_id="account",
+        data={"email": "test@example.invalid", "password": "fake"},
+        async_on_unload=Mock(),
+    )
+    client = SimpleNamespace(
+        create=AsyncMock(side_effect=error),
+        close=AsyncMock(side_effect=RuntimeError() if cleanup_fails else None),
+    )
+    try:
+        with patch("custom_components.hon.Hon", return_value=client), patch(
+            "custom_components.hon.aiohttp_client.async_get_clientsession",
+            return_value=Mock(),
+        ), patch("custom_components.hon.async_track_time_interval") as timer:
+            with pytest.raises(ConfigEntryNotReady) as raised:
+                await async_setup_entry(hass, entry)
+            assert raised.value.__cause__ is error
+            client.close.assert_awaited_once()
+            timer.assert_not_called()
+            entry.async_on_unload.assert_not_called()
+            assert DOMAIN not in hass.data
+    finally:
+        await hass.async_stop()
 
 
 @pytest.mark.asyncio

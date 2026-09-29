@@ -4,8 +4,10 @@ from pathlib import Path
 from typing import Any
 
 import voluptuous as vol  # type: ignore[import-untyped]
+from aiohttp import ClientConnectionError
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv, aiohttp_client
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
@@ -34,14 +36,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     session = aiohttp_client.async_get_clientsession(hass)
     if (config_dir := hass.config.config_dir) is None:
         raise ValueError("Missing Config Dir")
-    hon = await Hon(
+    client = Hon(
         email=entry.data[CONF_EMAIL],
         password=entry.data[CONF_PASSWORD],
         mobile_id=MOBILE_ID,
         session=session,
         test_data_path=Path(config_dir),
         refresh_token=entry.data.get(CONF_REFRESH_TOKEN, ""),
-    ).create()
+    )
+    try:
+        hon = await client.create()
+    except (ClientConnectionError, TimeoutError) as err:
+        # DNS and other temporary transport failures can happen before the
+        # recovery coordinator exists. Let HA retry setup with its own backoff.
+        try:
+            await client.close()
+        except Exception:
+            _LOGGER.debug("Could not close hOn client after failed setup", exc_info=True)
+        raise ConfigEntryNotReady(
+            "Cannot connect to Haier; check DNS/network connectivity. "
+            "Home Assistant will retry automatically."
+        ) from err
 
     # Save the new refresh token
     hass.config_entries.async_update_entry(
