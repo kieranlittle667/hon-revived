@@ -8,7 +8,7 @@ jobs:
   release-zip:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@0717577d45739eb3c851188b29f50ed6c0b2194e
 
       - name: ZIP Component Dir
         run: |
@@ -16,7 +16,7 @@ jobs:
           zip -r haier_hon.zip ./
 
       - name: Upload zip to release
-        uses: svenstaro/upload-release-action@v2
+        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ${{ github.workspace }}/custom_components/hon/haier_hon.zip
