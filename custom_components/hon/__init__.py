@@ -52,7 +52,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         try:
             await client.close()
         except Exception:
-            _LOGGER.debug("Could not close hOn client after failed setup", exc_info=True)
+            _LOGGER.debug(
+                "Could not close hOn client after failed setup", exc_info=True
+            )
         raise ConfigEntryNotReady(
             "Cannot connect to Haier; check DNS/network connectivity. "
             "Home Assistant will retry automatically."

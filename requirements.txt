@@ -1,1 +1,1 @@
-pyhon-revived==0.19.2
+https://github.com/kieranlittle667/pyhon-revived/archive/5f9e322f26370de47c4acff8cf2db24ca969afe3.zip#pyhon-revived==0.19.3.dev0

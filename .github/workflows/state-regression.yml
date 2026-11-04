@@ -1,5 +1,6 @@
 name: State regression tests
 on:
+  workflow_dispatch:
   push:
     branches: [fix/stale-appliance-state]
   pull_request:
