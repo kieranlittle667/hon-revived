@@ -10,5 +10,5 @@ jobs:
   validate:
     runs-on: "ubuntu-latest"
     steps:
-        - uses: "actions/checkout@v3"
-        - uses: "home-assistant/actions/hassfest@master"
+        - uses: "actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26"
+        - uses: "home-assistant/actions/hassfest@86d4564712fa02543c808e3a693dd04f9d3f8361"
