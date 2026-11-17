@@ -10,8 +10,6 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     PERCENTAGE,
-    CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
-    CONCENTRATION_PARTS_PER_MILLION,
 )
 from homeassistant.const import (
     REVOLUTIONS_PER_MINUTE,
@@ -20,8 +18,6 @@ from homeassistant.const import (
     UnitOfMass,
     UnitOfTime,
     UnitOfTemperature,
-    UnitOfDensity,
-    UnitOfRatio,
 )
 from homeassistant.core import callback
 from homeassistant.helpers.entity import EntityCategory
@@ -32,6 +28,20 @@ from . import const
 from .const import DOMAIN
 from .entity import HonEntity
 from .util import unique_entities, get_readable
+
+try:  # HA >= 2026.7
+    from homeassistant.const import UnitOfDensity, UnitOfRatio
+
+    MICROGRAMS_PER_CUBIC_METER = UnitOfDensity.MICROGRAMS_PER_CUBIC_METER
+    PARTS_PER_MILLION = UnitOfRatio.PARTS_PER_MILLION
+except ImportError:  # HA < 2026.7
+    from homeassistant.const import (
+        CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+        CONCENTRATION_PARTS_PER_MILLION,
+    )
+
+    MICROGRAMS_PER_CUBIC_METER = CONCENTRATION_MICROGRAMS_PER_CUBIC_METER
+    PARTS_PER_MILLION = CONCENTRATION_PARTS_PER_MILLION
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -809,28 +819,28 @@ SENSORS: dict[str, tuple[SensorEntityDescription, ...]] = {
             name="CO Level",
             state_class=SensorStateClass.MEASUREMENT,
             device_class=SensorDeviceClass.CO,
-            native_unit_of_measurement=UnitOfRatio.PARTS_PER_MILLION,
+            native_unit_of_measurement=PARTS_PER_MILLION,
         ),
         HonSensorEntityDescription(
             key="pm10ValueIndoor",
             name="PM 10",
             state_class=SensorStateClass.MEASUREMENT,
             device_class=SensorDeviceClass.PM10,
-            native_unit_of_measurement=UnitOfDensity.MICROGRAMS_PER_CUBIC_METER,
+            native_unit_of_measurement=MICROGRAMS_PER_CUBIC_METER,
         ),
         HonSensorEntityDescription(
             key="pm2p5ValueIndoor",
             name="PM 2.5",
             state_class=SensorStateClass.MEASUREMENT,
             device_class=SensorDeviceClass.PM25,
-            native_unit_of_measurement=UnitOfDensity.MICROGRAMS_PER_CUBIC_METER,
+            native_unit_of_measurement=MICROGRAMS_PER_CUBIC_METER,
         ),
         HonSensorEntityDescription(
             key="vocValueIndoor",
             name="VOC",
             state_class=SensorStateClass.MEASUREMENT,
             device_class=SensorDeviceClass.VOLATILE_ORGANIC_COMPOUNDS,
-            native_unit_of_measurement=UnitOfDensity.MICROGRAMS_PER_CUBIC_METER,
+            native_unit_of_measurement=MICROGRAMS_PER_CUBIC_METER,
             translation_key="voc",
         ),
         HonSensorEntityDescription(
