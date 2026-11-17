@@ -72,3 +72,45 @@ complexity, formatting and typing failures have been repaired without relaxing
 production lint limits. Hosted results are recorded in the recovery PRs.
 Actual cloud outages, unavailable Wi-Fi and machine-side refusal can still prevent
 updates or starts. The dashboard should continue to require appliance confirmation.
+
+## Combined upstream upgrade candidate
+
+Integration `0.19.6.dev0` incorporates upstream hOn `v0.19.5` while retaining
+independent five-minute REST recovery, startup retries, per-device availability,
+selection preservation and unload cleanup. It pins companion library
+`0.19.5.dev0` at commit `b358a9dd3280bb27ad403a18e03891e6327025db`.
+That library combines upstream pyhon `v0.19.4` with the existing MQTT connection,
+laundry completion, snapshot-race and lifecycle fixes. Upstream program-value
+normalization and diagnostic export fixes are retained and regression tested.
+
+The state-regression workflow now targets Home Assistant `2026.11.1`, matching
+the installed instance reviewed for this upgrade. This candidate must be
+published together with its pinned library commit before installing from GitHub.
+A local test does not verify a real Haier cloud session or appliance behavior;
+keep the previous integration files and exact library pin available for rollback,
+restart Home Assistant after installation, and verify a complete wash/dry cycle.
+HACS's upstream version record does not describe a manually installed fork.
+
+### Local validation of the combined candidate
+
+- Python 3.14 with Home Assistant 2026.11.1 and the built companion package:
+  all 12 integration tests pass, including all ten platform imports and washer/
+  dryer entity completion, availability, stable unique IDs and disconnection.
+- The combined library passes all 30 tests plus five unittest subtests, including
+  uppercase wire values/case-insensitive triggers and diagnostic archive fixes.
+- The original offline washer/dryer MQTT reproductions now both show inactive
+  cycles after completion and a disconnected connection-sensor snapshot.
+- Library flake8, mypy, Pylint and Black pass; integration syntax lint and Black
+  pass; pip check reports no broken requirements.
+- Against HA 2026.11.1, integration mypy reports 14 existing errors in config-flow
+  schemas/result types, legacy climate temperature APIs and two obsolete import
+  ignores. The unchanged fork produces the same 14 errors. These are not hidden
+  or relaxed in this upgrade; the upstream unit-fallback typing issues are fixed.
+- Existing datetime.utcnow deprecation warnings remain in library auth tests;
+  the HA HTTP application inheritance warning also remains in integration tests.
+- Windows tests normalize HA's POSIX-only frame lookup and register integration
+  metadata for platform imports. Production code is not patched for the test OS.
+
+This establishes offline regression compatibility, not a guarantee of Haier cloud
+availability or a real appliance cycle. No live HA installation, restart, login or
+appliance command was performed as part of this candidate validation.
